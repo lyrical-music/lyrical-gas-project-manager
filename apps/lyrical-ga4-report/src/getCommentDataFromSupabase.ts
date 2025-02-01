@@ -38,6 +38,7 @@ function writeSupabaseDataToSheet() {
 }
 
 // TODO: ループの条件を整理したい（現状「totalRecords」と「limit」の二つ体制で、冗長な気がしている）
+// TODO: 毎回全権更新するのではなく、差分更新で対応した方がいいかもしれない
 function getCommentDataFromSupabase() {
   // 環境変数からSupabaseのURLとAPIキーを取得
   const supabaseUrl = getEnvProperty('SUPABASE_URL');
