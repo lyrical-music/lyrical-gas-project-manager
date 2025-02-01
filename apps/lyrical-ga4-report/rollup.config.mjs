@@ -4,6 +4,7 @@ export default {
   ...baseConfig,
   input: {
     index: 'src/index.ts',
+    aggregateCommentData: 'src/aggregateCommentData.ts',
     getCommentDataFromSupabase: 'src/getCommentDataFromSupabase.ts',
     gas: '../../common/gas.ts',
     spreadSheet: '../../common/spreadSheet.ts',
