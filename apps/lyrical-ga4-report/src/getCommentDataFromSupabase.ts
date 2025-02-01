@@ -37,6 +37,7 @@ function writeSupabaseDataToSheet() {
   Logger.log('Data successfully written to the "comment" sheet.');
 }
 
+// TODO: ループの条件を整理したい（現状「totalRecords」と「limit」の二つ体制で、冗長な気がしている）
 function getCommentDataFromSupabase() {
   // 環境変数からSupabaseのURLとAPIキーを取得
   const supabaseUrl = getEnvProperty('SUPABASE_URL');
@@ -47,7 +48,7 @@ function getCommentDataFromSupabase() {
   }
 
   const tableName = 'comment'; // 対象のテーブル名
-  const limit = 1000; // 1回のリクエストで取得する件数
+  const limit = 1000; // 1回のリクエストで取得する件数（※limitによる終了条件を正確に機能させるため、supabase側の設定と合わせておくこと）
   let offset = 0;
   let allData: any[] = [];
   let totalRecords = Infinity; // 最初は全体件数が不明なのでInfinityに設定
