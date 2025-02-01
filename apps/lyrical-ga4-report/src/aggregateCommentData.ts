@@ -1,8 +1,16 @@
-interface AggregatedCounts {
-  daily: number;
-  weekly: number;
-  monthly: number;
-  yearly: number;
+type AggregatedCounts = {
+  daily_count: number;
+  weekly_count: number;
+  monthly_count: number;
+  yearly_count: number;
+}
+
+type AggregatedCountObject = {
+  [key: string]: AggregatedCounts;
+}
+
+type CommentAggregation = AggregatedCounts & {
+  comment_id: string;
 }
 
 function aggregateCommentData() {
@@ -22,7 +30,7 @@ function aggregateCommentData() {
   const dataValues = inputSheet.getDataRange().getValues();
   dataValues.shift(); // ヘッダー行を削除
 
-  const aggregated: { [key: string]: AggregatedCounts } = {};
+  const aggregated: AggregatedCountObject = {};
 
   // ---------- 日数差を求めるヘルパー関数 ----------
 
@@ -41,26 +49,26 @@ function aggregateCommentData() {
     // まだaggregatedにcommentIdが無ければ初期化
     if (!aggregated[commentId]) {
       aggregated[commentId] = {
-        daily: 0,
-        weekly: 0,
-        monthly: 0,
-        yearly: 0,
+        daily_count: 0,
+        weekly_count: 0,
+        monthly_count: 0,
+        yearly_count: 0,
       };
     }
 
     // 集計範囲に応じて加算
     // （差分 <= 1日以内ならdaily, <=7ならweekly, <=30ならmonthly, <=365ならyearly）
     if (diffDays <= 1) {
-      aggregated[commentId].daily += eventCount;
+      aggregated[commentId].daily_count += eventCount;
     }
     if (diffDays <= 7) {
-      aggregated[commentId].weekly += eventCount;
+      aggregated[commentId].weekly_count += eventCount;
     }
     if (diffDays <= 30) {
-      aggregated[commentId].monthly += eventCount;
+      aggregated[commentId].monthly_count += eventCount;
     }
     if (diffDays <= 365) {
-      aggregated[commentId].yearly += eventCount;
+      aggregated[commentId].yearly_count += eventCount;
     }
   }
 
@@ -79,10 +87,10 @@ function aggregateCommentData() {
   for (const [commentId, counts] of Object.entries(aggregated)) {
     outputValues.push([
       commentId,
-      counts.daily.toString(),
-      counts.weekly.toString(),
-      counts.monthly.toString(),
-      counts.yearly.toString(),
+      counts.daily_count.toString(),
+      counts.weekly_count.toString(),
+      counts.monthly_count.toString(),
+      counts.yearly_count.toString(),
     ]);
   }
 
@@ -90,6 +98,74 @@ function aggregateCommentData() {
   outputSheet
     .getRange(1, 1, outputValues.length, outputValues[0].length)
     .setValues(outputValues);
+
+  // ---------- SupabaseにデータをUPSERT ----------
+  const convertedRecords = Object.entries(aggregated).map(
+    ([commentId, record]) => {
+      return {
+        comment_id: commentId,
+        daily_count: record.daily_count,
+        weekly_count: record.weekly_count,
+        monthly_count: record.monthly_count,
+        yearly_count: record.yearly_count,
+      };
+    }
+  );
+  // 1000件ずつに分割してリクエストを送信
+  const chunkSize = 1000;
+  for (let i = 0; i < convertedRecords.length; i += chunkSize) {
+    const chunk = convertedRecords.slice(i, i + chunkSize);
+    upsertDataToSupabase(chunk);
+  }
+}
+
+function upsertDataToSupabase(records: CommentAggregation[]) {
+  // 環境変数からSupabaseのURLとAPIキーを取得
+  const supabaseUrl = getEnvProperty('SUPABASE_URL');
+  const supabaseApiKey = getEnvProperty('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (typeof supabaseApiKey !== 'string') {
+    throw new Error('Supabase API key is missing');
+  }
+
+  const tableName = 'comment_aggregation'; // 対象のテーブル名
+  const conflictColumn = 'comment_id'; // UPSERT時の競合解決カラム
+
+  // テーブルに対するエンドポイントURL
+  // on_conflictに指定したカラムをもとにUPSERTが行われる
+  const url = `${supabaseUrl}/rest/v1/${tableName}?on_conflict=${conflictColumn}`;
+
+  // HTTPリクエストオプション
+  const options = {
+    method: 'post' as GoogleAppsScript.URL_Fetch.HttpMethod,
+    headers: {
+      'apikey': supabaseApiKey,
+      'Authorization': 'Bearer ' + supabaseApiKey,
+      'Content-Type': 'application/json',
+      // Upsert(merge)を行う際に必要
+      'Prefer': 'resolution=merge-duplicates',
+    },
+    // 送信データをJSON文字列にする
+    payload: JSON.stringify(records),
+    muteHttpExceptions: true, // HTTPエラーでもレスポンスを取得する
+  };
+
+  try {
+    // リクエスト送信
+    const response = UrlFetchApp.fetch(url, options);
+    const statusCode = response.getResponseCode();
+    const responseBody = response.getContentText();
+
+    if (statusCode >= 200 && statusCode < 300) {
+      Logger.log('Upsertに成功しました。');
+      Logger.log('レスポンス: ' + responseBody);
+    } else {
+      Logger.log(`Upsertに失敗しました。ステータスコード: ${statusCode}`);
+      Logger.log('レスポンス: ' + responseBody);
+    }
+  } catch (error) {
+    Logger.log('エラーが発生しました: ' + error);
+  }
 }
 
 function getDiffInDays(baseDate: Date, targetDate: Date) {
