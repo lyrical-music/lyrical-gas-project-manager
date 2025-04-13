@@ -71,7 +71,7 @@ function pullProject(scriptId, projectPath) {
   };
 
   fs.writeFileSync(
-    path.join(projectPath, '.clasp.json'),
+    path.join(projectPath, '.clasp-dev.json'),
     JSON.stringify(claspConfig, null, 2)
   );
 
@@ -143,7 +143,7 @@ function createGoogleSheetsProject(title) {
   };
 
   fs.writeFileSync(
-    path.join(appsDir, title, '.clasp.json'),
+    path.join(appsDir, title, '.clasp-dev.json'),
     JSON.stringify(claspConfig, null, 2)
   );
 
