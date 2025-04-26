@@ -1,8 +1,7 @@
 function fetchEndpoint(endpoint: string): boolean {
   try {
     const response = UrlFetchApp.fetch(`https://www.lyricalmusic.jp${endpoint}`);
-    const result = JSON.parse(response.getContentText());
-    return result.success;
+    return response.getResponseCode() == 200;
   } catch (error) {
     return false;
   }
@@ -10,9 +9,10 @@ function fetchEndpoint(endpoint: string): boolean {
 
 function main() {
   const endpoints = [
-    '/api/ga4/fetch',
-    '/api/aggregation/artist-views',
-    '/api/aggregation/likes'
+    '/api/aggregation/likes',
+    '/api/aggregation/comment',
+    '/api/aggregation/track',
+    '/api/aggregation/artist',
   ];
   
   endpoints.forEach(endpoint => {
@@ -20,5 +20,3 @@ function main() {
     console.log(`${endpoint}: ${success ? '成功' : '失敗'}`);
   });
 }
-
-main();
