@@ -9,7 +9,7 @@ function fetchEndpoint(endpoint: string): boolean {
 
 function main() {
   const endpoints = [
-    '/api/aggregation/likes',
+    '/api/aggregation/reactions',
     '/api/aggregation/comment',
     '/api/aggregation/track',
     '/api/aggregation/artist',
